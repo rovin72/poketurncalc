@@ -1,0 +1,101 @@
+{
+    "Fire Punch": {
+        "type": "Fire",
+        "category": "Physical",
+        "power": 75,
+        "accuracy": 100,
+        "pp": 24    
+    },
+    "Ice Punch": {
+        "type": "Ice",
+        "category": "Physical",
+        "power": 75,
+        "accuracy": 100,
+        "pp": 24    
+    },
+    "Thunder Punch": {
+        "type": "Electric",
+        "category": "Physical",
+        "power": 75,
+        "accuracy": 100,
+        "pp": 24    
+    },
+    "Roost": {
+        "type": "Flying",
+        "category": "Status",
+        "power": 0,
+        "accuracy": 0,
+        "pp": 8    
+    },
+    "Earth Power": {
+        "type": "Ground",
+        "category": "Special",
+        "power": 90,
+        "accuracy": 100,
+        "pp": 16    
+    },
+    "Shadow Claw": {
+        "type": "Ghost",
+        "category": "Physical",
+        "power": 70,
+        "accuracy": 100,
+        "pp": 24    
+    },
+    "Earthquake": {
+        "type": "Ground",
+        "category": "Physical",
+        "power": 100,
+        "accuracy": 100,
+        "pp": 16    
+    },
+    "Stone Edge": {
+        "type": "Rock",
+        "category": "Physical",
+        "power": 100,
+        "accuracy": 80,
+        "pp": 8    
+    },
+    "Sludge Bomb": {
+        "type": "Poison",
+        "category": "Special",
+        "power": 90,
+        "accuracy": 100,
+        "pp": 16    
+    },
+    "Dragon Dance": {
+        "type": "Dragon",
+        "category": "Status",
+        "power": 0,
+        "accuracy": 0,
+        "pp": 32    
+    },
+    "Dazzling Gleam": {
+        "type": "Fairy",
+        "category": "Special",
+        "power": 80,
+        "accuracy": 100,
+        "pp": 16    
+    },
+    "Air Slash": {
+        "type": "Flying",
+        "category": "Special",
+        "power": 75,
+        "accuracy": 95,
+        "pp": 24    
+    },
+    "Close Combat": {
+        "type": "Fighting",
+        "category": "Physical",
+        "power": 120,
+        "accuracy": 100,
+        "pp": 8    
+    },
+    "Extreme Speed": {
+        "type":"Normal",
+        "category":"Physical",
+        "power":80,
+        "accuracy":100,
+        "pp":8,
+        "priority":2
+    }
+}
