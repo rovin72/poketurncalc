@@ -2,6 +2,22 @@ import copy
 import json
 with open('moves.json', 'r') as f:
     moves_data = json.load(f)
+class Team:
+    def __init__(self, pokemon):
+        self.pokemon=pokemon
+        self.activeIndex=0
+        self.availablepokemon=len(pokemon)
+    def active(self):
+        return self.pokemon[self.activeIndex]
+    def switch(self,switchIndex):
+        self.active().atkboost=0
+        self.active().spaboost=0
+        self.active().spdefboost=0
+        self.active().defboost=0
+        self.active().spdboost=0
+        self.activeIndex=switchIndex
+    def validswitches(self):
+        return [i for i,pkmn in enumerate(self.pokemon) if pkmn.hp>0 and pkmn!=self.active()]
 class Move:
     def __init__(self, name, power, accuracy, move_type, category, pp, priority=0):
         self.name = name
@@ -11,8 +27,8 @@ class Move:
         self.category = category
         self.pp = pp
         self.priority = priority
-class opponent:
-    def __init__(self,name,hp,maxspeed,attack,spattack,defense,spdefense,atkboost,spaboost,defboost,spdefboost,spdboost,type1,type2=None,knownmoves=None,status=None,maxhp=None):
+class Opponent:
+    def __init__(self,name,hp,maxspeed,attack,spattack,defense,spdefense,type1,type2=None,atkboost=0,spaboost=0,defboost=0,spdefboost=0,spdboost=0,knownmoves=[],status=None,maxhp=None,othereffects=[],fainted=False):
         self.name=name
         self.hp=hp
         if maxhp:
@@ -31,16 +47,14 @@ class opponent:
         self.defboost=defboost
         self.spdefboost=spdefboost
         self.spdboost=spdboost
-        self.knownmoves=knownmoves or []
+        self.knownmoves=knownmoves
         self.status=status
-        if self.status=="Burn":
-            self.attack=int(self.attack*0.5)
-        elif self.status=="Paralyze":
-            self.maxspeed=int(self.maxspeed*0.5)
-class player:
-    def __init__(self,name,hp,maxspeed,attack,spattack,defense,spdefense,moves,atkboost,spaboost,defboost,spdefboost,spdboost,type1,type2=None,status=None, maxhp=None):
+        self.statuscounter=0
+        self.othereffects=othereffects
+        self.fainted=fainted
+class Player:
+    def __init__(self,name,hp,maxspeed,attack,spattack,defense,spdefense,moves,type1,type2=None,atkboost=0,spaboost=0,defboost=0,spdefboost=0,spdboost=0,status=None, maxhp=None,othereffects=[],fainted=False):
         self.name=name
-        self.hp=hp
         self.hp=hp
         if maxhp:
             self.maxhp=maxhp
@@ -60,10 +74,9 @@ class player:
         self.spdefboost=spdefboost
         self.spdboost=spdboost
         self.status=status
-        if self.status=="Burn":
-            self.attack=int(self.attack*0.5)
-        elif self.status=="Paralyze":
-            self.maxspeed=int(self.maxspeed*0.5)
+        self.statuscounter=0
+        self.othereffects=othereffects
+        self.fainted=fainted
     def doDamage(self,opponent,move):
         if move.pp <= 0:
             print(f"{self.name} tried to use {move.name}, but it has no PP left!")
@@ -76,6 +89,7 @@ class player:
             opponent.hp = max(0, opponent.hp - damage)
             if opponent.hp == 0:
                 print(f"{self.name} used {move.name}, {opponent.name} fainted!")
+                return True
             else:
                 print(f"{self.name} used {move.name} and dealt {damage} damage. {opponent.name} has {opponent.hp} HP left.")
             secondaryEffectTable(move.name, damage, self, opponent)
@@ -122,6 +136,8 @@ def secondaryEffectTable(move_name,move_damage, attacker, defender):
         recoil = int(0.5 * attacker.maxhp)
         attacker.hp -= recoil
         print(f"{attacker.name} took {recoil} recoil damage from Steel Beam.")
+    if move_name == "Salt Cure":
+        defender.othereffects.append("Salt Cure")
     attacker.atkboost = min(6, max(-6, attacker.atkboost))
     attacker.defboost = min(6, max(-6, attacker.defboost))
     attacker.spdefboost = min(6, max(-6, attacker.spdefboost))
@@ -154,16 +170,19 @@ def statusTable(move, attacker, defender,printmessages=True):
         attacker.defboost += 2
         if printmessages:
             print(f"{attacker.name}'s Defense rose sharply!")
-    elif move.name == "Will-O-Wisp":
+    elif move.name == "Will-O-Wisp" and defender.status is None and defender.type1!="Fire" and (defender.type2!="Fire" if defender.type2 else True):
         defender.status = "Burn"
-        defender.attack = int(defender.attack * 0.5)
         if printmessages:
             print(f"{defender.name} was burned!")
-    elif move.name == "Thunder Wave":
-        defender.status = "Paralyze"
-        defender.maxspeed = int(defender.maxspeed * 0.5)
+    elif move.name == "Thunder Wave" and defender.status is None and defender.type1 not in ["Electric", "Ground"] and (defender.type2 not in ["Electric", "Ground"] if defender.type2 else True):
+        defender.status = " "
         if printmessages:  
             print(f"{defender.name} was paralyzed!")
+    elif move.name == "Curse" and attacker.type1=="Ghost":
+        defender.othereffects.append("Curse")
+        attacker.hp -= int(0.5 * attacker.maxhp)
+        if printmessages:
+            print(f"{attacker.name} cut down its own HP to place a curse on {defender.name}!")
     elif move.name == "Curse":
         attacker.atkboost += 1
         attacker.defboost += 1
@@ -187,6 +206,16 @@ def statusTable(move, attacker, defender,printmessages=True):
         attacker.defboost += 1
         if printmessages:
             print(f"{attacker.name}'s Attack and Defense rose!")
+    elif move.name == "Quiver Dance":
+        attacker.spaboost += 1
+        attacker.spdefboost += 1
+        attacker.spdboost += 1
+        if printmessages:
+            print(f"{attacker.name}'s Special Attack, Special Defense, and Speed rose!")
+    elif move.name == "Leech Seed" and "Leech Seed" not in defender.othereffects and defender.type1!="Grass" and (defender.type2!="Grass" if defender.type2 else True):
+        defender.othereffects.append("Leech Seed")
+        if printmessages:
+            print(f"{defender.name} was seeded with Leech Seed!")
     attacker.atkboost = min(6, max(-6, attacker.atkboost))
     attacker.defboost = min(6, max(-6, attacker.defboost))
     attacker.spdefboost = min(6, max(-6, attacker.spdefboost))
@@ -243,7 +272,23 @@ def calculateDamage(attacker, move, defender,reducePP=True):
         AttackBoost = 2/(2-AttackBoost)
     else:
         AttackBoost = 1
-    base_damage = ((((((2 * 100 / 5 + 2) * move.power * ((attack_stat*AttackBoost) / (defense_stat*DefenseBoost))) / 50) + 2)*move.accuracy/100))
+    if attacker.status=="Burn" and move.category=="Physical":
+        attack_stat*=0.5
+    if attacker.status=="Paralyze":
+        parachance=0.75
+    else:
+        parachance=1.0
+    sleepchance=1.0
+    if attacker.status=="Sleep" and move.name not in ["Sleep Talk", "Snore", "Rest"]:
+        sleepchance=0.0
+        if attacker.statuscounter>=1:
+            sleepchance=1/(4-attacker.statuscounter)
+        if sleepchance>1.0:
+            sleepchance=1.0
+    freezechance=1.0
+    if attacker.status=="Freeze" and (move.type!="Fire"or move.name not in ["Scald", "Matcha Gotcha", "Scorching Sands"]):
+        freezechance=0.2
+    base_damage = ((((((2 * 100 / 5 + 2) * move.power * ((attack_stat*AttackBoost) / (defense_stat*DefenseBoost))) / 50) + 2)*move.accuracy/100))*parachance*sleepchance*freezechance
     STABMultiplier = 1.0
     if attacker.type1 == move.type or attacker.type2 == move.type:
         STABMultiplier *= 1.5 # STAB
@@ -259,16 +304,26 @@ def calculateDamage(attacker, move, defender,reducePP=True):
     total_damage = base_damage * STABMultiplier * type_multiplier
     return int(total_damage)
 def turnDamage(player,opponent,planned_move):
+    if isinstance(planned_move, tuple) and planned_move[0] == "switch":
+        return switchTurn(player, opponent, planned_move[1])
     recalc=False
     used_move_name, newmove=getOpponentMove(opponent)
+    if used_move_name=="switch":
+        oppSwitch()
+        opponent=opponent_team.active()
+        player.doDamage(opponent,planned_move)
+        if player.hp>0:
+            afterturneffects(player,opponent)
+        if opponent.hp>0:
+            afterturneffects(opponent,player)
+        return True
     used_move = next((move for move in opponent.knownmoves if move.name == used_move_name), None)
     if planned_move.priority>used_move.priority:
         playerfirst=True
     elif used_move.priority>planned_move.priority:
         playerfirst=False
     else:
-        player_speed = player.maxspeed * ((2 + player.spdboost) / 2 if player.spdboost > 0 else 2 / (2 - player.spdboost) if player.spdboost < 0 else 1)
-        opponent_speed = opponent.maxspeed * ((2 + opponent.spdboost) / 2 if opponent.spdboost > 0 else 2 / (2 - opponent.spdboost) if opponent.spdboost < 0 else 1)
+        player_speed, opponent_speed = getSpeed(player, opponent)
         playerfirst=opponent_speed<player_speed
     if playerfirst:
         player.doDamage(opponent,planned_move)
@@ -280,7 +335,7 @@ def turnDamage(player,opponent,planned_move):
                 player.hp = max(0, player.hp - damage)
                 if player.hp==0:
                     print(f"{opponent.name} used {used_move_name}, {player.name} fainted!")
-                    return False
+                    return True
                 else:
                     print(f"{opponent.name} used {used_move_name} and dealt {damage} damage. {player.name} has {player.hp} HP left.")
                 secondaryEffectTable(used_move_name,damage,opponent,player)
@@ -298,77 +353,138 @@ def turnDamage(player,opponent,planned_move):
             secondaryEffectTable(used_move_name,damage,opponent,player)
         if player.hp>0:
             player.doDamage(opponent,planned_move)
+    if player.hp>0:
+        afterturneffects(player,opponent)
+    if opponent.hp>0:
+        afterturneffects(opponent,player)
+    else:return True
     if newmove:
         recalc=True
     return recalc
-def moveEval(player, opponent, lookahead=3):
+def switchTurn(player,opponent,switcher):
+    print(f"{player.name} switched out into {switcher.name}")
+    player=switcher
+    player_team.switch(player_team.pokemon.index(switcher))
+    used_move_name, newmove=getOpponentMove(opponent)
+    if used_move_name=="switch":
+            oppSwitch()
+            opponent=opponent_team.active()
+            if player.hp>0:
+                afterturneffects(player,opponent)
+            if opponent.hp>0:
+                afterturneffects(opponent,player)
+            return True
+    used_move = next((move for move in opponent.knownmoves if move.name == used_move_name), None)
+    if used_move:
+            damage = calculateDamage(opponent, used_move, player)
+            if used_move.category=="Status":
+                statusTable(used_move,opponent,player)
+            player.hp = max(0, player.hp - damage)
+            if player.hp==0:
+                print(f"{opponent.name} used {used_move_name}, {player.name} fainted!")
+                return False
+            else:
+                print(f"{opponent.name} used {used_move_name} and dealt {damage} damage. {player.name} has {player.hp} HP left.")
+            secondaryEffectTable(used_move_name,damage,opponent,player)
+    if player.hp>0:
+        afterturneffects(player,opponent)
+    if opponent.hp>0:
+        afterturneffects(opponent,player)
+    return newmove
+def oppSwitch():
+    switchpkmn=input("Which pokemon would you like to switch in? ")
+    if switchpkmn not in [pkmn.name for pkmn in opponent_team.pokemon] and len(opponent_team.pokemon)<6:
+        newpkmnhp=int(input("What is the pokemon's hp? "))
+        newpkmnatk=int(input("What is the pokemon's attack? "))
+        newpkmnspa=newpkmnhp=int(input("What is the pokemon's special attack? "))
+        newpkmndef=int(input("What is the pokemon's defense? "))
+        newpkmnspdef=int(input("What is the pokemon's special defense? "))
+        newpkmnspd=int(input("What is the pokemon's speed? "))
+        newpkmntype1=input("What is the pokemon's 1st type? ")
+        newpkmntype2=input("What is the pokemon's 2nd type? (leave empty if NA)")
+        if newpkmntype2=="":
+            newpkmntype2=None
+        opponent_team.pokemon.append(Opponent(name=switchpkmn, hp=newpkmnhp, attack=newpkmnatk, defense=newpkmndef, spattack=newpkmnspa,spdefense=newpkmnspdef,maxspeed=newpkmnspd,type1=newpkmntype1,type2=newpkmntype2))
+    for pkmn in opponent_team.pokemon:
+        if pkmn.name==switchpkmn:
+            opponent_team.switch(opponent_team.pokemon.index(pkmn))
+def moveEval(player_team, opponent, lookahead=3):
     max_value = -float('inf')
     best_sequence = []
-    for move in player.moves:
-        if move.pp <= 0:
-            continue
-        player_copy = copy.deepcopy(player)
+    allActions=[("move",m) for m in player_team.active().moves if m.pp>0]+[("switch",s) for s in player_team.validswitches()]
+    for action_type,action_obj in allActions:
+        player_copy = copy.deepcopy(player_team)
         opponent_copy = copy.deepcopy(opponent)
-        move_copy = next(m for m in player_copy.moves if m.name == move.name)
-        move_copy.pp -= 1
-        total_value = 0
-        opp_move_name, opp_damage = player_copy.takeDamage(opponent_copy, reducePP=False)
-        opponent_move = next((m for m in opponent_copy.knownmoves if m.name == opp_move_name), None)
-        opponent_priority = opponent_move.priority if opponent_move else 0
-        if move.priority > opponent_priority:
-            first = True
-        elif opponent_priority > move.priority:
-            first = False
-        else:
-            player_speed = player_copy.maxspeed * ((2 + player_copy.spdboost) / 2 if player_copy.spdboost > 0 else 2 / (2 - player_copy.spdboost) if player_copy.spdboost < 0 else 1)
-            opponent_speed = opponent_copy.maxspeed * ((2 + opponent_copy.spdboost) / 2 if opponent_copy.spdboost > 0 else 2 / (2 - opponent_copy.spdboost) if opponent_copy.spdboost < 0 else 1)
-            first = player_speed > opponent_speed
-        if first:
-            if move.category == "Status":
-                statusTable(move, player_copy, opponent_copy, printmessages=False)
-                damage = calculateDamage(player_copy, move, opponent_copy, reducePP=False)
+        total_value=0
+        if action_type=="move":
+            move=action_obj
+            move_copy = next(m for m in player_copy.active().moves if m.name == move.name)
+            move_copy.pp -= 1
+            opp_move_name, opp_damage = player_copy.active().takeDamage(opponent_copy, reducePP=False)
+            opponent_move = next((m for m in opponent_copy.knownmoves if m.name == opp_move_name), None)
+            opponent_priority = opponent_move.priority if opponent_move else 0
+            if move.priority > opponent_priority:
+                first = True
+            elif opponent_priority > move.priority:
+                first = False
             else:
-                damage = calculateDamage(player_copy, move, opponent_copy, reducePP=False)
-                damage = min(damage, opponent_copy.hp)
-                opponent_copy.hp -= damage
-                total_value += damage
-            secondaryEffectTable(move.name, damage, player_copy, opponent_copy)
-            if opponent_copy.hp > 0:
-                player_copy.hp = max(0, player_copy.hp - opp_damage)
-                if player_copy.hp == 0:
+                player_speed, opponent_speed = getSpeed(player_copy.active(), opponent_copy)
+                first = player_speed > opponent_speed
+            if first:
+                if move.category == "Status":
+                    statusTable(move, player_copy.active(), opponent_copy, printmessages=False)
+                    damage = calculateDamage(player_copy.active(), move, opponent_copy, reducePP=False)
+                else:
+                    damage = calculateDamage(player_copy.active(), move, opponent_copy, reducePP=False)
+                    damage = min(damage, opponent_copy.hp)
+                    opponent_copy.hp -= damage
+                    total_value += damage
+                secondaryEffectTable(move.name, damage, player_copy.active(), opponent_copy)
+                if opponent_copy.hp > 0:
+                    player_copy.active().hp = max(0, player_copy.active().hp - opp_damage)
+                    if player_copy.active().hp == 0:
+                        total_value -= 1000
+                    else:
+                        total_value -= opp_damage
+                else:
+                    total_value += 9999
+            else:
+                player_copy.active().hp = max(0, player_copy.active().hp - opp_damage)
+                if player_copy.active().hp == 0:
                     total_value -= 1000
                 else:
                     total_value -= opp_damage
-            else:
-                total_value += 9999
-        else:
-            player_copy.hp = max(0, player_copy.hp - opp_damage)
-            if player_copy.hp == 0:
-                total_value -= 1000
-            else:
-                total_value -= opp_damage
-            if move.category == "Status":
-                statusTable(move, player_copy, opponent_copy, printmessages=False)
-                damage = calculateDamage(player_copy, move, opponent_copy, reducePP=False)
-            else:
-                damage = calculateDamage(player_copy, move, opponent_copy, reducePP=False)
-                damage = min(damage, opponent_copy.hp)
-                opponent_copy.hp -= damage
-                total_value += damage
-            if opponent_copy.hp == 0:
-                total_value += 9999
-            secondaryEffectTable(move.name, damage, player_copy, opponent_copy)
-        if lookahead > 1 and opponent_copy.hp > 0 and player_copy.hp > 0:
+                if move.category == "Status":
+                    statusTable(move, player_copy.active(), opponent_copy, printmessages=False)
+                    damage = calculateDamage(player_copy.active(), move, opponent_copy, reducePP=False)
+                else:
+                    damage = calculateDamage(player_copy.active(), move, opponent_copy, reducePP=False)
+                    damage = min(damage, opponent_copy.hp)
+                    opponent_copy.hp -= damage
+                    total_value += damage
+                if opponent_copy.hp == 0:
+                    total_value += 9999
+                secondaryEffectTable(move.name, damage, player_copy.active(), opponent_copy)
+        elif action_type=="switch":
+            player_copy.switch(action_obj)
+            opp_move_name, opp_damage = player_copy.active().takeDamage(opponent_copy, reducePP=False)
+            player_copy.active().hp = max(0, player_copy.active().hp - opp_damage)
+            if player_copy.active().hp == 0:
+                    total_value -= 1000
+        if player_copy.active().hp>0:
+            afterturneffects(player_copy.active(),opponent_copy,printmessages=False)
+        if opponent_copy.hp>0:
+            afterturneffects(opponent_copy,player_copy.active(), printmessages=False)
+        if lookahead > 1 and opponent_copy.hp > 0 and player_copy.active().hp > 0:
             next_value, next_sequence = moveEval(player_copy, opponent_copy, lookahead=lookahead - 1)
             total_value += next_value
-            move_sequence = [move] + next_sequence
+            move_sequence = [(action_type, action_obj)] + next_sequence
         else:
-            move_sequence = [move]
+            move_sequence = [(action_type,action_obj)]
         if total_value > max_value:
             best_sequence = move_sequence
             max_value = total_value
-    best_sequence_names = [m.name if hasattr(m, "name") else m for m in best_sequence]
-    return max_value, best_sequence_names
+    return max_value, best_sequence
 def loadMove(move_name):
     move_info = moves_data.get(move_name)
     if move_info:
@@ -384,70 +500,117 @@ def loadMove(move_name):
     else:
         raise ValueError(f"Move '{move_name}' not found in moves data.")
 def getOpponentMove(opponent):
+    switch=input("Did the opponent switch? (Y/N)")
+    if switch=="Y":
+        return "switch",True
     chosenmove=input("What move did the opponent use? ")
     newmove=False
     if chosenmove not in [move.name for move in opponent.knownmoves]:
         opponent.knownmoves.append(loadMove(chosenmove))
         newmove=True
     return chosenmove,newmove
-#player_moves = [Move("Freeze-Dry", 70, 100, "Ice", "Special", 16), Move("Ice Beam", 90, 100, "Ice", "Special", 16), Move("Draco Meteor", 130, 90, "Dragon", "Special", 8),Move("Earth Power", 90, 100, "Ground", "Special", 16)]
-#player_pokemon = player(name="Kyurem",hp=391, maxspeed=318, attack=238, spattack=359, defense=216, spdefense=217, moves=player_moves, atkboost=0, spaboost=0, defboost=0, spdefboost=0, type1="Dragon", type2="Ice")
-player_moves = [
+def afterturneffects(pokemon1,pokemon2,printmessages=True):
+    if pokemon1.status=="Burn":
+        burndamage=int(0.0625*pokemon1.maxhp)
+        pokemon1.hp=max(0,pokemon1.hp-burndamage)
+        if printmessages:
+            print(f"{pokemon1.name} is hurt by its burn and loses {burndamage} HP! It now has {pokemon1.hp} HP.")
+    elif pokemon1.status=="Poison":
+        poisondamage=int(0.0625*pokemon1.maxhp)
+        pokemon1.hp=max(0,pokemon1.hp-poisondamage)
+        if printmessages:
+            print(f"{pokemon1.name} is hurt by poison and loses {poisondamage} HP! It now has {pokemon1.hp} HP.")
+    elif pokemon1.status=="Badly Poisoned":
+        pokemon1.statuscounter+=1
+        if pokemon1.statuscounter>15:
+            pokemon1.statuscounter=15
+        toxdamage=int(pokemon1.statuscounter/16*pokemon1.maxhp)
+        pokemon1.hp=max(0,pokemon1.hp-toxdamage)
+        if printmessages:
+            print(f"{pokemon1.name} is hurt by toxic and loses {toxdamage} HP! It now has {pokemon1.hp} HP.")
+    elif pokemon1.status=="Sleep":
+        pokemon1.statuscounter+=1
+    if pokemon1.othereffects:
+        for effect in pokemon1.othereffects:
+            if effect=="Leech Seed":
+                leechdamage=int(0.0625*pokemon1.maxhp)
+                pokemon1.hp=max(0,pokemon1.hp-leechdamage)
+                pokemon2.hp=min(pokemon2.maxhp,pokemon2.hp+leechdamage)
+                if printmessages:
+                    print(f"{pokemon1.name} is hurt by Leech Seed and loses {leechdamage} HP! It now has {pokemon1.hp} HP. {pokemon2.name} heals {leechdamage} HP and now has {pokemon2.hp} HP.")
+            if effect=="Salt Cure":
+                if pokemon1.type1 in ["Water","Steel"] or (pokemon1.type2 and pokemon1.type2 in ["Water","Steel"]):
+                    saltdamage=int(0.25*pokemon1.maxhp)
+                else:
+                    saltdamage=int(0.125*pokemon1.maxhp)
+                pokemon1.hp=max(0,pokemon1.hp-saltdamage)
+                if printmessages:
+                    print(f"{pokemon1.name} is hurt by Salt Cure and loses {saltdamage} HP! It now has {pokemon1.hp} HP.")
+            if effect=="Curse":
+                cursedamage=int(0.25*pokemon1.maxhp)
+                pokemon1.hp=max(0,pokemon1.hp-cursedamage)
+                if printmessages:
+                    print(f"{pokemon1.name} is hurt by Curse and loses {cursedamage} HP! It now has {pokemon1.hp} HP.")
+    if pokemon1.hp==0:
+        if printmessages:
+            print(f"{pokemon1.name} fainted due to after-turn effects!")
+        return True
+def getSpeed(player, opponent):
+    playerparamult=1.0
+    opponentparamult=1.0
+    if player.status=="Paralyze":
+        playerparamult=0.5
+    if opponent.status=="Paralyze":
+        opponentparamult=0.5
+    player_speed = player.maxspeed * ((2 + player.spdboost) / 2 if player.spdboost > 0 else 2 / (2 - player.spdboost) if player.spdboost < 0 else 1) * playerparamult
+    opponent_speed = opponent.maxspeed * ((2 + opponent.spdboost) / 2 if opponent.spdboost > 0 else 2 / (2 - opponent.spdboost) if opponent.spdboost < 0 else 1) * opponentparamult
+    return player_speed, opponent_speed
+playerpkm1_moves = [
     loadMove("Dragon Dance"),
     loadMove("Extreme Speed"),
     loadMove("Thunder Punch"),
     loadMove("Roost")
 ]
-
-player_pokemon = player(
+player_team =Team([Player(
     name="Dragonite",
     hp=386, maxspeed=259, attack=328, spattack=236, defense=226, spdefense=236,
-    moves=player_moves, atkboost=0, spaboost=0, defboost=0, spdefboost=0, spdboost=0,
-    type1="Dragon", type2="Flying"
-)
-
-#opponent_pokemon = opponent(name="Primarina",hp=321, maxspeed=200, attack=165, spattack=386, defense=184, spdefense=268, atkboost=0, spaboost=0, defboost=0, spdefboost=0, type1="Water", type2="Fairy", knownmoves=[Move("Moonblast", 95, 100, "Fairy", "Special", 16), Move("Surf", 90, 100, "Water", "Special", 16)])
-#opponent_pokemon = opponent(name="Iron Hands",hp=449, maxspeed=100, attack=416, spattack=112, defense=252,spdefense=215, atkboost=0, spaboost=0, defboost=0, spdefboost=0, type1="Fighting", type2="Electric", knownmoves=[Move("Drain Punch", 75, 100, "Fighting", "Physical", 16), Move("Thunder Punch", 75, 100, "Electric", "Physical", 16)])
-# opponent_pokemon = opponent(
-#     name="Tinkaton",
-#     hp=354, maxspeed=320, attack=200, spattack=172, defense=200, spdefense=295,
-#     atkboost=0, spaboost=0, defboost=0, spdefboost=0, spdboost=0,
-#     type1="Fairy", type2="Steel",
-#     knownmoves=[
-#         Move("Play Rough", 90, 90, "Fairy", "Physical", 16),
-#         Move("Gigaton Hammer", 160, 100, "Steel", "Physical", 5)
-#     ]
-# )
-opponent_pokemon = opponent(
+    moves=playerpkm1_moves, type1="Dragon", type2="Flying"),
+    Player(name="Metagross",
+    hp=364, maxspeed=176,attack=405,defense=296,spattack=203,spdefense=217,
+    moves=[loadMove("Psychic Fangs"),loadMove("Bullet Punch"),loadMove("Iron Head"),loadMove("Earthquake")],type1="Steel",type2="Psychic")])
+opponent_team = Team([Opponent(
     name="Togekiss",
     hp=350, maxspeed=260, attack=182, spattack=200, defense=200, spdefense=250,
-    atkboost=0, spaboost=0, defboost=0, spdefboost=0, spdboost=0,
     type1="Fairy", type2="Flying",
     knownmoves=[
         loadMove("Air Slash")
     ]
-)
+),Opponent(
+    name="Great Tusk",
+    hp=371,attack=361,defense=298,spattack=127,spdefense=143,maxspeed=300,
+    type1="Ground",type2="Fighting"
+)])
 
 lookaheadturns=int(input("Enter number of lookahead turns (suggested 2-4): "))
-
 # Plan the next turns before starting
-max_value, move_plan = moveEval(player_pokemon, opponent_pokemon, lookahead=lookaheadturns)
-print(f"Initial plan: {[m for m in move_plan]} (Score: {max_value})")
-
+max_value, move_plan = moveEval(player_team, opponent_team.active(), lookahead=lookaheadturns)
+print(f"Initial plan: {[("switch",player_team.pokemon[m[1]].name)if m[0]=="switch" else m[1].name for m in move_plan]} (Score: {max_value})")
 turn_index = 0
-
-while player_pokemon.hp > 0 and opponent_pokemon.hp > 0:
+while player_team.active().hp > 0 and opponent_team.active().hp > 0:
     # replan if we've exhausted the current move plan
     if turn_index >= len(move_plan):
-        max_value, move_plan = moveEval(player_pokemon, opponent_pokemon, lookahead=lookaheadturns)
-        print(f"\nReplanning... new sequence: {[m for m in move_plan]} (Score: {max_value})")
+        max_value, move_plan = moveEval(player_team, opponent_team.active(), lookahead=lookaheadturns)
+        print(f"\nReplanning... new sequence: {[("switch",player_team.pokemon[m[1]].name)if m[0]=="switch" else m[1].name for m in move_plan]} (Score: {max_value})")
         turn_index = 0
-
-    planned_move_name = move_plan[turn_index]
-    planned_move = next(m for m in player_pokemon.moves if m.name == planned_move_name)
-    recalc=turnDamage(player_pokemon, opponent_pokemon, planned_move)
+    planned_action = move_plan[turn_index]
+    if planned_action[0]=="switch":
+        switch_target = player_team.pokemon[planned_action[1]]
+        recalc=turnDamage(player_team.active(), opponent_team.active(), ("switch", switch_target))
+    else:
+        planned_move = planned_action[1]
+        recalc = turnDamage(player_team.active(), opponent_team.active(), planned_move)
     if recalc:
-        max_value, move_plan = moveEval(player_pokemon, opponent_pokemon, lookahead=lookaheadturns)
-        print(f"\nReplanning... new sequence: {[m for m in move_plan]} (Score: {max_value})")
+        max_value, move_plan = moveEval(player_team, opponent_team.active(), lookahead=lookaheadturns)
+        print(f"\nReplanning... new sequence: {[("switch",player_team.pokemon[m[1]].name)if m[0]=="switch" else m[1].name for m in move_plan]} (Score: {max_value})")
         turn_index = -1
     turn_index += 1
