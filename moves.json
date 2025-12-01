@@ -81,7 +81,8 @@
         "category": "Special",
         "power": 75,
         "accuracy": 95,
-        "pp": 24    
+        "pp": 24,
+        "flinchChance": 0.3    
     },
     "Close Combat": {
         "type": "Fighting",
@@ -97,5 +98,152 @@
         "accuracy":100,
         "pp":8,
         "priority":2
+    },
+    "Psychic Fangs": {
+        "type":"Psychic",
+        "category":"Physical",
+        "power":85,
+        "accuracy":100,
+        "pp":16
+    },
+    "Bullet Punch": {
+        "type":"Steel",
+        "category":"Physical",
+        "power":40,
+        "accuracy":100,
+        "pp":48,
+        "priority":1
+    },
+    "Iron Head": {
+        "type":"Steel",
+        "category":"Physical",
+        "power":80,
+        "accuracy":100,
+        "pp":24,
+        "flinchChance": 0.3
+    },
+    "Will-O-Wisp": {
+        "type": "Fire",
+        "category":"Status",
+        "power":0,
+        "accuracy":85,
+        "pp":24
+    },
+    "Flip Turn": {
+        "type": "Water",
+        "category": "Physical",
+        "power": 60,
+        "accuracy": 100,
+        "pp":32,
+        "switchmove": true
+    },
+    "Scald": {
+        "type": "Water",
+        "category":"Special",
+        "power":80,
+        "accuracy": 100,
+        "pp":24
+    },
+    "Protect": {
+        "type": "Normal",
+        "category": "Status",
+        "power": 0,
+        "accuracy": 100,
+        "pp":16,
+        "priority":4
+    },
+    "Wish": {
+        "type": "Normal",
+        "category": "Status",
+        "power": 0,
+        "accuracy":100,
+        "pp":16
+    },
+    "Body Slam": {
+        "type": "Normal",
+        "category": "Physical",
+        "power":85,
+        "accuracy":100,
+        "pp":24
+    },
+    "Mirror Coat": {
+        "type": "Psychic",
+        "category": "Special",
+        "power": 0,
+        "accuracy": 100,
+        "pp":32,
+        "priority":-5
+    },
+    "Play Rough": {
+        "type": "Fairy",
+        "category": "Physical",
+        "power": 90,
+        "accuracy": 90,
+        "pp":16
+    },
+    "Whirlpool": {
+        "type": "Water",
+        "category": "Special",
+        "power": 35,
+        "accuracy": 85,
+        "pp":24
+    },
+    "Bitter Blade":{
+        "type": "Fire",
+        "category": "Physical",
+        "power": 90,
+        "accuracy": 100,
+        "pp":16
+    },
+    "Shadow Sneak":{
+        "type": "Ghost",
+        "category": "Physical",
+        "power": 40,
+        "accuracy": 100,
+        "pp":48,
+        "priority":1
+    },
+    "Poltergeist":{
+        "type": "Ghost",
+        "category": "Physical",
+        "power": 110,
+        "accuracy": 90,
+        "pp":8
+    },
+    "Swords Dance": {
+        "type": "Normal",
+        "category": "Status",
+        "power": 0,
+        "accuracy":100,
+        "pp":32
+    },
+    "Taunt": {
+        "type": "Dark",
+        "category": "Status",
+        "power": 0,
+        "accuracy":100,
+        "pp":32
+    },
+    "Bulk Up": {
+        "type": "Fighting",
+        "category": "Status",
+        "power": 0,
+        "accuracy":100,
+        "pp":32
+    },
+    "Pyro Ball":{
+        "type": "Fire",
+        "category": "Physical",
+        "power": 120,
+        "accuracy": 90,
+        "pp":8
+    },
+    "U-Turn": {
+        "type": "Bug",
+        "category": "Physical",
+        "power": 70,
+        "accuracy": 100,
+        "pp":32,
+        "switchmove": true
     }
 }
